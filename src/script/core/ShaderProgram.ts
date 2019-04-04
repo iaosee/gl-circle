@@ -5,7 +5,7 @@ export default class ShaderProgram {
   public vertShader: WebGLShader;
   public fragShader: WebGLShader;
   public shaderProgram: WebGLProgram;
-  
+
   public constructor(
     private gl: WebGLRenderingContext,
     private vertSource: string,
@@ -65,7 +65,7 @@ export default class ShaderProgram {
     this.gl.useProgram(this.shaderProgram);
   }
 
-  public createVShader(vertSource: string) {
+  public createVShader(vertSource: string): WebGLShader {
     const { gl } = this;
     const shader = gl.createShader(gl.VERTEX_SHADER)
     gl.shaderSource(shader, vertSource);
@@ -77,7 +77,7 @@ export default class ShaderProgram {
     return shader;
   }
 
-  public createFShader(fragSource: string) {
+  public createFShader(fragSource: string): WebGLShader {
     const { gl } = this;
     const shader = gl.createShader(gl.FRAGMENT_SHADER)
     gl.shaderSource(shader, fragSource)
@@ -89,7 +89,10 @@ export default class ShaderProgram {
     return shader;
   }
 
-  createShaderProgram(vertShader: WebGLShader, fragShader: WebGLShader) {
+  createShaderProgram(
+    vertShader: WebGLShader,
+    fragShader: WebGLShader
+  ): WebGLProgram {
     const { gl } = this;
     const program = gl.createProgram();
     gl.attachShader(program, vertShader);
@@ -102,39 +105,43 @@ export default class ShaderProgram {
     return program;
   }
 
-  getAttribute(attributeName: string) {
+  getAttribute(attributeName: string): number {
     const { gl, shaderProgram } = this;
     return gl.getAttribLocation(shaderProgram, attributeName);
   }
 
-  getUniform(uniformName: string) {
+  getUniform(uniformName: string): WebGLUniformLocation {
     const { gl, shaderProgram } = this;
     return gl.getUniformLocation(shaderProgram, uniformName);
   }
 
-  getAttributes(attributeNames: Array<string>) {
+  getAttributes(attributeNames: Array<string>): Array<number> {
     const { gl, shaderProgram } = this;
-    const attribLocations = [];
+    const attribLocations: Array<number> = [];
 
     if (!Array.isArray(attributeNames)) {
       throw new Error('attributeNames is not a array.');
     }
     for (let i = 0, len = attributeNames.length; i < len; i++) {
-      attribLocations.push(gl.getAttribLocation(shaderProgram, attributeNames[i]));
+      attribLocations.push(
+        gl.getAttribLocation(shaderProgram, attributeNames[i])
+      );
     }
 
     return attribLocations;
   }
 
-  getUniforms(uniformNames: Array<string>) {
+  getUniforms(uniformNames: Array<string>): Array<WebGLUniformLocation> {
     const { gl, shaderProgram } = this;
-    const uniformLocations = [];
+    const uniformLocations: Array<WebGLUniformLocation> = [];
 
     if (!Array.isArray(uniformNames)) {
       throw new Error('uniformNames is not a array.');
     }
     for (let i = 0, len = uniformNames.length; i < len; i++) {
-      uniformLocations.push(gl.getUniformLocation(shaderProgram, uniformNames[i]));
+      uniformLocations.push(
+        gl.getUniformLocation(shaderProgram, uniformNames[i])
+      );
     }
 
     return uniformLocations;
