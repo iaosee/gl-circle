@@ -130,6 +130,14 @@ module.exports = {
         test: /\.ts[x]?$/,
         loader: 'ts-loader',
         exclude: /node_modules/
+      },
+      {
+        test: /\.(vert|frag|glsl)\w*/,
+        loader: 'file-loader',
+        options: {
+          name: '[name].[hash].[ext]',
+          outputPath: 'shader/'
+        }
       }
     ],
   },
