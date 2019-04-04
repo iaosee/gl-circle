@@ -5,6 +5,8 @@ export default class ShaderProgram {
   public vertShader: WebGLShader;
   public fragShader: WebGLShader;
   public shaderProgram: WebGLProgram;
+  public attributeVariables: Map<string, number> = new Map<string, number>();
+  public uniformVariables: Map<string, WebGLUniformLocation> = new Map<string, WebGLUniformLocation>();
 
   public constructor(
     private gl: WebGLRenderingContext,
@@ -107,12 +109,18 @@ export default class ShaderProgram {
 
   getAttribute(attributeName: string): number {
     const { gl, shaderProgram } = this;
-    return gl.getAttribLocation(shaderProgram, attributeName);
+    const attribLocation: number = gl.getAttribLocation(shaderProgram, attributeName);
+
+    this.attributeVariables.set(attributeName, attribLocation);
+    return attribLocation;
   }
 
   getUniform(uniformName: string): WebGLUniformLocation {
     const { gl, shaderProgram } = this;
-    return gl.getUniformLocation(shaderProgram, uniformName);
+    const uniformLocation: WebGLUniformLocation = gl.getUniformLocation(shaderProgram, uniformName);
+
+    this.uniformVariables.set(uniformName, uniformLocation);
+    return uniformLocation;
   }
 
   getAttributes(attributeNames: Array<string>): Array<number> {
@@ -123,9 +131,9 @@ export default class ShaderProgram {
       throw new Error('attributeNames is not a array.');
     }
     for (let i = 0, len = attributeNames.length; i < len; i++) {
-      attribLocations.push(
-        gl.getAttribLocation(shaderProgram, attributeNames[i])
-      );
+      const attribLocation: number = gl.getAttribLocation(shaderProgram, attributeNames[i]);
+      attribLocations.push(attribLocation);
+      this.attributeVariables.set(attributeNames[i], attribLocation);
     }
 
     return attribLocations;
@@ -139,9 +147,9 @@ export default class ShaderProgram {
       throw new Error('uniformNames is not a array.');
     }
     for (let i = 0, len = uniformNames.length; i < len; i++) {
-      uniformLocations.push(
-        gl.getUniformLocation(shaderProgram, uniformNames[i])
-      );
+      const uniformLocation: WebGLUniformLocation = gl.getUniformLocation(shaderProgram, uniformNames[i]);
+      uniformLocations.push(uniformLocation);
+      this.uniformVariables.set(uniformNames[i], uniformLocation);
     }
 
     return uniformLocations;
