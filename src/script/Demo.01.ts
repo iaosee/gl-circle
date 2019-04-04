@@ -9,6 +9,7 @@ const LINE_VERTEX_SOURCE   = require('../shader/line.vert');
 const LINE_FRAGMENT_SOURCE = require('../shader/line.frag');
 
 const randomRgba = () => [Math.random(), Math.random(), Math.random(), 1.0];
+const randomRange = (min: number, max: number): number => Math.random() * (max - min) + min;
 
 export default class Demo {
 
@@ -17,6 +18,7 @@ export default class Demo {
   public faceProgram: ShaderProgram;
   public lineProgram: ShaderProgram;
   public buffers: Map<string, BufferInfo> = new Map<string, BufferInfo>();
+  public dataset: any = {};
   public config: any = {
     fieldOfView: 45,
     zNear: 0.01,
@@ -29,11 +31,12 @@ export default class Demo {
   };
 
   public constructor(public canvas: HTMLCanvasElement) {
+    console.log(this);
 
     this.initGL()
+        .createModel()
         .initShaders()
         .then((demo) => {
-          console.log(demo);
           this.getVariable()
               .initBuffers()
               .listenEvents()
@@ -107,6 +110,76 @@ export default class Demo {
     return this;
   }
 
+  private createModel() {
+    const { gl, dataset, buffers } = this;
+    const center = { x: 0, y: 0, z: 0 };
+    const radius = 1;
+    const polygon = Math.floor(randomRange(3, 10));
+    const angle = 360 / polygon;
+
+    let point_position    = [];
+    let model_position    = [];
+    let model_normal      = [];
+    let instance_position = [];
+    let instance_size     = [];
+    let instance_color    = [];
+
+    const calculateNormal = (v0: Array<number>, v1: Array<number>, v2: Array<number>) => {
+      let va = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
+      let vb = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
+      let n  = [
+        va[1] * vb[2] - va[2] * vb[1],
+        va[2] * vb[0] - va[0] * vb[2],
+        va[0] * vb[1] - va[1] * vb[0]
+      ];
+      return n;
+    };
+    const normalize = (v: Array<number>) => {
+      let distance = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+      return distance > 0.000001 ? [v[0] / distance, v[1] / distance, v[2] / distance] : [0, 0, 0];
+    };
+
+    // 圆上每个点 x, y
+    for (let i = 0; i <= polygon; i++) {
+      let radian = angle * i * Math.PI / 180;
+      let x = center.x + radius * Math.cos(radian);
+      let y = center.y + radius * Math.sin(radian);
+      point_position.push([x, y]);
+    }
+    for( let i = 0; i < point_position.length - 1; i++ ) {
+      // 正多边形
+      let top = [
+        [...point_position[i], center.z],
+        [...point_position[i + 1], center.z],
+        [center.x, center.y, center.z],
+      ];
+
+      model_position.push(...top[0], ...top[1], ...top[2]);
+      model_normal.push(
+        ...normalize(calculateNormal(top[0], top[1], top[2])),
+        ...normalize(calculateNormal(top[0], top[1], top[2])),
+        ...normalize(calculateNormal(top[0], top[1], top[2])),
+      );
+    }
+
+    let w = 0.5;
+    for( let i = -5; i <= Math.abs(-5); i += 1.5 ) {
+      for( let j = -5; j <= Math.abs(-5); j += 1.5 ) {
+        let h = randomRange(1, 10);
+        instance_position.push(j, i, -2.0);
+        instance_size.push(w, w, h);
+        instance_color.push(...randomRgba());
+      }
+    }
+
+    console.log(model_position);
+    console.log(instance_position);
+    console.log(instance_size);
+    console.log(instance_color);
+
+    return this;
+  }
+
   private initBuffers() {
     const { gl, buffers } = this;
     const model_vertex_positios: Array<number> = [
@@ -163,9 +236,9 @@ export default class Demo {
       20, 21, 22,     20, 22, 23,   // left
     ];
 
-    console.log(model_vertex_positios);
-    console.log(model_vertex_colors);
-    console.log(model_vertex_indices);
+    // console.log(model_vertex_positios);
+    // console.log(model_vertex_colors);
+    // console.log(model_vertex_indices);
 
     const positionBuffer = gl.createBuffer();
     const positionBufferInfo: BufferInfo = {
