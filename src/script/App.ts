@@ -21,6 +21,7 @@ export default class App {
     const setSize = () => {
       this.canvas.width = window.innerWidth;
       this.canvas.height = window.innerHeight;
+      this.demo && this.demo.setViewport();
     };
     setSize();
     document.body.appendChild(this.canvas);

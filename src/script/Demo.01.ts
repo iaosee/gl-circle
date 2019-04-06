@@ -2,19 +2,19 @@ import * as glMatrix from 'gl-matrix-ts';
 
 import ShaderProgram from "./core/ShaderProgram";
 import { BufferInfo } from "./declare";
+import { randomRgba, randomRange
+       , calculateNormal, normalize } from './tools';
 
 const FACE_VERTEX_SOURCE   = require('../shader/face.vert');
 const FACE_FRAGMENT_SOURCE = require('../shader/face.frag');
 const LINE_VERTEX_SOURCE   = require('../shader/line.vert');
 const LINE_FRAGMENT_SOURCE = require('../shader/line.frag');
 
-const randomRgba = () => [Math.random(), Math.random(), Math.random(), 1.0];
-const randomRange = (min: number, max: number): number => Math.random() * (max - min) + min;
-
 export default class Demo {
 
   public player: any;
-  public gl: WebGLRenderingContext;
+  public instanceCount: number = 0;
+  public gl: WebGL2RenderingContext;
   public faceProgram: ShaderProgram;
   public lineProgram: ShaderProgram;
   public buffers: Map<string, BufferInfo> = new Map<string, BufferInfo>();
@@ -23,11 +23,15 @@ export default class Demo {
     fieldOfView: 45,
     zNear: 0.01,
     zFar: 1000,
+    
+    polygon: 30,
 
-    cameraPos: [0, 0, 20],
-    cameraLook: [0, 0, 7],
-    cameraRotate: [0, 0, 0],
+    cameraPos: glMatrix.vec3.fromValues(0, 0, 100),
+    cameraLook: glMatrix.vec3.fromValues(0, 0, 0),
+    cameraRotate: glMatrix.vec3.fromValues(45, 0, 0),
 
+    scaling: glMatrix.vec3.fromValues(1.0, 1.0, 1.0),
+    translating: glMatrix.vec3.fromValues(0.25, 0.25, 0.25),
   };
 
   public constructor(public canvas: HTMLCanvasElement) {
@@ -72,7 +76,7 @@ export default class Demo {
   private initGL() {
 
     try {
-      this.gl = (this.canvas.getContext('webgl2') as WebGLRenderingContext);
+      this.gl = this.canvas.getContext('webgl2') as WebGL2RenderingContext;
     } catch (e) { console.error(e) }
 
     if ( !this.gl ) {
@@ -97,6 +101,9 @@ export default class Demo {
     const faceAttributeNames: Array<string> = [
       'aVertexPosition',
       'aVertexColor',
+      'aInstanceSize',
+      'aInstancePosition',
+      'aInstanceColor',
     ];
     const faceUniformNames: Array<string> = [
       'uMvpMatrix',
@@ -111,172 +118,132 @@ export default class Demo {
   }
 
   private createModel() {
-    const { gl, dataset, buffers } = this;
+    const { dataset, config } = this;
     const center = { x: 0, y: 0, z: 0 };
     const radius = 1;
-    const polygon = Math.floor(randomRange(3, 10));
+    const polygon = config.polygon  || Math.floor(randomRange(4, 50));
     const angle = 360 / polygon;
+    const rgbaColor = randomRgba();
 
-    let point_position    = [];
-    let model_position    = [];
-    let model_normal      = [];
-    let instance_position = [];
-    let instance_size     = [];
-    let instance_color    = [];
-
-    const calculateNormal = (v0: Array<number>, v1: Array<number>, v2: Array<number>) => {
-      let va = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
-      let vb = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
-      let n  = [
-        va[1] * vb[2] - va[2] * vb[1],
-        va[2] * vb[0] - va[0] * vb[2],
-        va[0] * vb[1] - va[1] * vb[0]
-      ];
-      return n;
-    };
-    const normalize = (v: Array<number>) => {
-      let distance = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-      return distance > 0.000001 ? [v[0] / distance, v[1] / distance, v[2] / distance] : [0, 0, 0];
-    };
+    let circle_point_position = [];
+    let model_vertex_position = [];
+    let model_vertex_color    = [];
+    let model_vertex_normal   = [];
+    let instance_position     = [];
+    let instance_size         = [];
+    let instance_color        = []; 
 
     // 圆上每个点 x, y
     for (let i = 0; i <= polygon; i++) {
       let radian = angle * i * Math.PI / 180;
       let x = center.x + radius * Math.cos(radian);
       let y = center.y + radius * Math.sin(radian);
-      point_position.push([x, y]);
+      circle_point_position.push([x, y]);
     }
-    for( let i = 0; i < point_position.length - 1; i++ ) {
+
+    for( let i = 0; i < circle_point_position.length - 1; i++ ) {
       // 正多边形
       let top = [
-        [...point_position[i], center.z],
-        [...point_position[i + 1], center.z],
+        [...circle_point_position[i], center.z],
+        [...circle_point_position[i + 1], center.z],
         [center.x, center.y, center.z],
       ];
+      let rgbaColor = randomRgba();
 
-      model_position.push(...top[0], ...top[1], ...top[2]);
-      model_normal.push(
+      model_vertex_position.push(...top[0], ...top[1], ...top[2]);
+      model_vertex_normal.push(
         ...normalize(calculateNormal(top[0], top[1], top[2])),
         ...normalize(calculateNormal(top[0], top[1], top[2])),
         ...normalize(calculateNormal(top[0], top[1], top[2])),
       );
+      model_vertex_color.push(
+        ...rgbaColor,
+        ...rgbaColor,
+        ...rgbaColor,
+      );
     }
 
-    let w = 0.5;
-    for( let i = -5; i <= Math.abs(-5); i += 1.5 ) {
-      for( let j = -5; j <= Math.abs(-5); j += 1.5 ) {
-        let h = randomRange(1, 10);
-        instance_position.push(j, i, -2.0);
-        instance_size.push(w, w, h);
+    for( let i = -5; i <= Math.abs(-5); i += 2 ) {
+      for( let j = -5; j <= Math.abs(-5); j += 2 ) {
+        instance_position.push(j, i, randomRange(-5, 5));
+        instance_size.push(1.0, 1.0, 1.0);
         instance_color.push(...randomRgba());
+        this.instanceCount++;
       }
     }
 
-    console.log(model_position);
-    console.log(instance_position);
-    console.log(instance_size);
-    console.log(instance_color);
+    console.log(this.instanceCount);
+
+    dataset.model_vertex_position = model_vertex_position;
+    dataset.model_vertex_normal   = model_vertex_normal;
+    dataset.model_vertex_color    = model_vertex_color;
+    dataset.instance_position     = instance_position;
+    dataset.instance_size         = instance_size;
+    dataset.instance_color        = instance_color;
 
     return this;
   }
 
   private initBuffers() {
-    const { gl, buffers } = this;
-    const model_vertex_positios: Array<number> = [
-      // Front face
-      -0.5, -0.5,  0.5,
-      0.5, -0.5,  0.5,
-      0.5,  0.5,  0.5,
-      -0.5,  0.5,  0.5,
-      // Back face
-      -0.5, -0.5, -0.5,
-      -0.5,  0.5, -0.5,
-      0.5,  0.5, -0.5,
-      0.5, -0.5, -0.5,
-      // Top face
-      -0.5,  0.5, -0.5,
-      -0.5,  0.5,  0.5,
-      0.5,  0.5,  0.5,
-      0.5,  0.5, -0.5,
-      // Bottom face
-      -0.5, -0.5, -0.5,
-      0.5, -0.5, -0.5,
-      0.5, -0.5,  0.5,
-      -0.5, -0.5,  0.5,
-      // Right face
-      0.5, -0.5, -0.5,
-      0.5,  0.5, -0.5,
-      0.5,  0.5,  0.5,
-      0.5, -0.5,  0.5,
-      // Left face
-      -0.5, -0.5, -0.5,
-      -0.5, -0.5,  0.5,
-      -0.5,  0.5,  0.5,
-      -0.5,  0.5, -0.5,
-    ];
-    let model_vertex_colors: Array<number> = [];
-    const faceColors = [
-      [...randomRgba()],    // Front face: white
-      [...randomRgba()],    // Back face: red
-      [...randomRgba()],    // Top face: green
-      [...randomRgba()],    // Bottom face: blue
-      [...randomRgba()],    // Right face: yellow
-      [...randomRgba()],    // Left face: purple
-    ];
-    for( let i = 0; i < faceColors.length; ++i ) {
-      let c = faceColors[i];
-      model_vertex_colors = model_vertex_colors.concat(c, c, c, c);
-    }
-    const model_vertex_indices = [
-      0,  1,  2,      0,  2,  3,    // front
-      4,  5,  6,      4,  6,  7,    // back
-      8,  9,  10,     8,  10, 11,   // top
-      12, 13, 14,     12, 14, 15,   // bottom
-      16, 17, 18,     16, 18, 19,   // right
-      20, 21, 22,     20, 22, 23,   // left
-    ];
+    const { gl, dataset, buffers } = this;
+    
 
-    // console.log(model_vertex_positios);
-    // console.log(model_vertex_colors);
-    // console.log(model_vertex_indices);
-
-    const positionBuffer = gl.createBuffer();
-    const positionBufferInfo: BufferInfo = {
-      buffer: positionBuffer,
+    const modelVertexBuffer = gl.createBuffer();
+    const modelVertexBufferInfo: BufferInfo = {
+      buffer: modelVertexBuffer,
       itemSize: 3,
-      numItems: model_vertex_positios.length / 3,
+      numItems: dataset.model_vertex_position.length / 3,
     };
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(model_vertex_positios), gl.STATIC_DRAW);
-    buffers.set('positionBuffer', positionBufferInfo);
+    gl.bindBuffer(gl.ARRAY_BUFFER, modelVertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(dataset.model_vertex_position), gl.STATIC_DRAW);
+    buffers.set('modelVertexBuffer', modelVertexBufferInfo);
 
-
-    const colorBuffer = gl.createBuffer();
-    const colorBufferInfo: BufferInfo = {
-      buffer: colorBuffer,
+    const modelColorBuffer = gl.createBuffer();
+    const modelColorBufferInfo: BufferInfo = {
+      buffer: modelColorBuffer,
       itemSize: 4,
-      numItems: model_vertex_colors.length / 4,
+      numItems: dataset.model_vertex_color / 4,
     };
-    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(model_vertex_colors), gl.STATIC_DRAW);
-    buffers.set('colorBuffer', colorBufferInfo);
+    gl.bindBuffer(gl.ARRAY_BUFFER, modelColorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(dataset.model_vertex_color), gl.STATIC_DRAW);
+    buffers.set('modelColorBuffer', modelColorBufferInfo);
 
-    const indexBuffer = gl.createBuffer();
-    const indexBufferInfo: BufferInfo = {
-      buffer: indexBuffer,
-      itemSize: 1,
-      numItems: model_vertex_indices.length / 1,
-    }
-    gl.bindBuffer(gl.ARRAY_BUFFER, indexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(model_vertex_indices), gl.STATIC_DRAW);
-    buffers.set('indexBuffer', indexBufferInfo);
+    const instancePositionBuffer = gl.createBuffer();
+    const instancePositionBufferInfo: BufferInfo = {
+      buffer: instancePositionBuffer,
+      itemSize: 3,
+      numItems: dataset.instance_position.length / 3,
+    };
+    gl.bindBuffer(gl.ARRAY_BUFFER, instancePositionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(dataset.instance_position), gl.STATIC_DRAW);
+    buffers.set('instancePositionBuffer', instancePositionBufferInfo);
 
+    const instanceSizeBuffer = gl.createBuffer();
+    const instanceSizeBufferInfo: BufferInfo = {
+      buffer: instanceSizeBuffer,
+      itemSize: 3,
+      numItems: dataset.instance_size.length / 3,
+    };
+    gl.bindBuffer(gl.ARRAY_BUFFER, instanceSizeBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(dataset.instance_size), gl.STATIC_DRAW);
+    buffers.set('instanceSizeBuffer', instanceSizeBufferInfo);
+
+    const instanceColorBuffer = gl.createBuffer();
+    const instanceColorBufferInfo: BufferInfo = {
+      buffer: instanceColorBuffer,
+      itemSize: 4,
+      numItems: dataset.instance_color.length / 4,
+    };
+    gl.bindBuffer(gl.ARRAY_BUFFER, instanceColorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(dataset.instance_color), gl.STATIC_DRAW);
+    buffers.set('instanceColorBuffer', instanceColorBufferInfo);
+    
     return this;
   }
 
   private drawScene(offScreenRender = false) {
     const { gl, config, faceProgram, lineProgram, buffers } = this;
-    
+
     const fieldOfView = config.fieldOfView / Math.PI / 180;
     const aspect      = gl.drawingBufferWidth / gl.drawingBufferHeight;
     const zNear       = config.zNear;
@@ -291,9 +258,12 @@ export default class Demo {
 
     glMatrix.mat4.perspective(projMatrix, fieldOfView, aspect, zNear, zFar);
     glMatrix.mat4.lookAt(viewMatrix, config.cameraPos, config.cameraLook, [0, 1, 0]);
+
     glMatrix.mat4.rotate(modelMatrix, modelMatrix, config.cameraRotate[0] * Math.PI / 180, [1, 0, 0]);
     glMatrix.mat4.rotate(modelMatrix, modelMatrix, config.cameraRotate[1] * Math.PI / 180, [0, 1, 0]);
     glMatrix.mat4.rotate(modelMatrix, modelMatrix, config.cameraRotate[2] * Math.PI / 180, [0, 0, 1]);
+
+    glMatrix.mat4.scale(modelMatrix, modelMatrix, config.scaling);
 
     glMatrix.mat4.multiply(mvMatrix, viewMatrix, modelMatrix);
     glMatrix.mat4.multiply(mvpMatrix, projMatrix, mvMatrix);
@@ -302,39 +272,55 @@ export default class Demo {
 
     gl.disable(gl.BLEND);
     gl.enable(this.gl.DEPTH_TEST);
-    gl.clearColor(.25, .25, .25, 1);
+    gl.clearColor(.25, .25, .25, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     faceProgram.use();
+
+    gl.enable( gl.BLEND );
+    gl.blendEquation( gl.FUNC_ADD );
+    gl.blendFunc( gl.SRC_COLOR, gl.DST_ALPHA );
+
     gl.uniformMatrix4fv(faceProgram.uniformVariables.get('uMvpMatrix'), false, mvpMatrix);
     gl.uniformMatrix4fv(faceProgram.uniformVariables.get('uModelMatrix'), false,modelMatrix);
     gl.uniformMatrix4fv(faceProgram.uniformVariables.get('uNormalMatrix'), false,normalMatrix);
 
-    const positionBufferInfo = buffers.get('positionBuffer');
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBufferInfo.buffer);
-    gl.enableVertexAttribArray(faceProgram.attributeVariables.get('aVertexPosition'));
-    gl.vertexAttribPointer(
-      faceProgram.attributeVariables.get('aVertexPosition'),
-      positionBufferInfo.itemSize,
-      gl.FLOAT,
-      false,
-      0,
-      0
-    );
 
-    const colorBufferInfo = buffers.get('colorBuffer');
-    gl.bindBuffer(gl.ARRAY_BUFFER, colorBufferInfo.buffer);
-    gl.enableVertexAttribArray(faceProgram.attributeVariables.get('aVertexColor'));
-    gl.vertexAttribPointer(
-      faceProgram.attributeVariables.get('aVertexColor'),
-      colorBufferInfo.itemSize,
-      gl.FLOAT,
-      false,
-      0,
-      0
-    );
+    const modelVertexBufferInfo = buffers.get('modelVertexBuffer');
+    const aVertexPositionVariable = faceProgram.attributeVariables.get('aVertexPosition');
+    gl.bindBuffer(gl.ARRAY_BUFFER, modelVertexBufferInfo.buffer);
+    gl.enableVertexAttribArray(aVertexPositionVariable);
+    gl.vertexAttribPointer( aVertexPositionVariable, modelVertexBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
 
-    (gl as any).drawArraysInstanced(gl.TRIANGLES, 0, positionBufferInfo.numItems, 1);
+    // const modelColorBufferInfo = buffers.get('modelColorBuffer');
+    // const aVertexColorVariable = faceProgram.attributeVariables.get('aVertexColor');
+    // gl.bindBuffer(gl.ARRAY_BUFFER, modelColorBufferInfo.buffer);
+    // gl.enableVertexAttribArray(aVertexColorVariable);
+    // gl.vertexAttribPointer(aVertexColorVariable, modelColorBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
+
+    const instancePositionBufferInfo = buffers.get('instancePositionBuffer');
+    const aInstancePositionVariable = faceProgram.attributeVariables.get('aInstancePosition');
+    gl.bindBuffer(gl.ARRAY_BUFFER, instancePositionBufferInfo.buffer);
+    gl.enableVertexAttribArray(aInstancePositionVariable);
+    gl.vertexAttribPointer(aInstancePositionVariable, instancePositionBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(aInstancePositionVariable, 1);
+
+    const instanceSizeBufferInfo = buffers.get('instanceSizeBuffer');
+    const aInstanceSizeVariable = faceProgram.attributeVariables.get('aInstanceSize');
+    gl.bindBuffer(gl.ARRAY_BUFFER, instanceSizeBufferInfo.buffer);
+    gl.enableVertexAttribArray(aInstanceSizeVariable);
+    gl.vertexAttribPointer(aInstanceSizeVariable, instanceSizeBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(aInstanceSizeVariable, 1);
+
+    const instanceColorBufferInfo = buffers.get('instanceColorBuffer');
+    const aInstanceColorVariable = faceProgram.attributeVariables.get('aInstanceColor');
+    gl.bindBuffer(gl.ARRAY_BUFFER, instanceColorBufferInfo.buffer);
+    gl.enableVertexAttribArray(aInstanceColorVariable);
+    gl.vertexAttribPointer(aInstanceColorVariable, instanceColorBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(aInstanceColorVariable, 1);
+
+
+    gl.drawArraysInstanced(gl.TRIANGLES, 0, modelVertexBufferInfo.numItems, this.instanceCount || 1);
 
   }
 
@@ -460,7 +446,16 @@ export default class Demo {
 
   private update(deltaTime: number) {
     const { config } = this;
-    config.cameraRotate[1] += deltaTime;
+    const scalingRatio = 0.0025;
+    // config.cameraRotate[1] += 0.25;
+
+    // for ( let i = 0, len = config.scaling.length; i < len; i++ ) {
+    //   if ( config.scaling[i] >= 0.5 && config.scaling[i] <= 1.0 ) {
+    //     config.scaling[i] += scalingRatio;
+    //   } else {
+    //     config.scaling[i] = 0.5;
+    //   }
+    // }
 
     return this;
   }

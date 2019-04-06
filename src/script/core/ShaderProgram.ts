@@ -33,7 +33,7 @@ export default class ShaderProgram {
 
   public static loadFile(url: string): Promise<string> {
     return new Promise((resolve) => {
-      var xhr = new XMLHttpRequest();
+      var xhr: XMLHttpRequest = new XMLHttpRequest();
       xhr.onreadystatechange = () => {
         if (xhr.readyState == XMLHttpRequest.DONE) {
           resolve(xhr.responseText);
@@ -65,6 +65,7 @@ export default class ShaderProgram {
 
   public use() {
     this.gl.useProgram(this.shaderProgram);
+    return this;
   }
 
   public createVShader(vertSource: string): WebGLShader {
