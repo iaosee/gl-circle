@@ -20,7 +20,7 @@ export default class Demo {
     fieldOfView: 45,
     zNear: 0.01,
     zFar: 1000,
-    
+
     polygon: 60,
 
     cameraPos: glMatrix.vec3.fromValues(0, 0, 100),
@@ -129,7 +129,7 @@ export default class Demo {
     let instance_size         = [];
     let instance_color        = [];
     let line_vertex_position  = [];
-    let line_instance_color     = [];
+    let line_instance_color   = [];
 
     // 圆上每个点 x, y
     for (let i = 0; i <= polygon; i++) {
@@ -503,13 +503,13 @@ export default class Demo {
     const scalingRatio = 0.0025;
     config.cameraRotate[0] += 0.25;
 
-    // for ( let i = 0, len = config.scaling.length; i < len; i++ ) {
-    //   if ( config.scaling[i] >= 0.5 && config.scaling[i] <= 1.0 ) {
-    //     config.scaling[i] += scalingRatio;
-    //   } else {
-    //     config.scaling[i] = 0.5;
-    //   }
-    // }
+    for ( let i = 0, len = config.scaling.length; i < len; i++ ) {
+      if ( config.scaling[i] >= 0.5 && config.scaling[i] <= 1.0 ) {
+        config.scaling[i] += scalingRatio;
+      } else {
+        config.scaling[i] = 0.5;
+      }
+    }
 
     return this;
   }
