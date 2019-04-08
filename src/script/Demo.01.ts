@@ -471,6 +471,7 @@ export default class Demo {
           break;
         case 32:
           console.log('restoration');
+          _this.restoration()
           break;
       }
     }
@@ -486,6 +487,14 @@ export default class Demo {
       e.preventDefault();
     }
 
+    return this;
+  }
+
+  private restoration() {
+    const { config } = this;
+    config.cameraPos = [0, 0, 100];
+    config.cameraLook = [0, 0, 0];
+    config.cameraRotate = [45, 0, 0];
     return this;
   }
 
