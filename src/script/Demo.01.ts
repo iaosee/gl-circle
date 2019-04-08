@@ -281,9 +281,9 @@ export default class Demo {
     glMatrix.mat4.perspective(projMatrix, fieldOfView, aspect, zNear, zFar);
     glMatrix.mat4.lookAt(viewMatrix, config.cameraPos, config.cameraLook, [0, 1, 0]);
 
-    glMatrix.mat4.rotate(modelMatrix, modelMatrix, config.cameraRotate[0] * Math.PI / 180, [1, 0, 0]);
-    glMatrix.mat4.rotate(modelMatrix, modelMatrix, config.cameraRotate[1] * Math.PI / 180, [0, 1, 0]);
-    glMatrix.mat4.rotate(modelMatrix, modelMatrix, config.cameraRotate[2] * Math.PI / 180, [0, 0, 1]);
+    glMatrix.mat4.rotate(viewMatrix, viewMatrix, config.cameraRotate[0] * Math.PI / 180, [1, 0, 0]);
+    glMatrix.mat4.rotate(viewMatrix, viewMatrix, config.cameraRotate[1] * Math.PI / 180, [0, 1, 0]);
+    glMatrix.mat4.rotate(viewMatrix, viewMatrix, config.cameraRotate[2] * Math.PI / 180, [0, 0, 1]);
 
     glMatrix.mat4.scale(modelMatrix, modelMatrix, config.scaling);
 
@@ -301,6 +301,7 @@ export default class Demo {
 
     // Alpha blend:  https://wgld.org/s/sample_018/
     gl.enable(gl.BLEND);
+    gl.disable(this.gl.DEPTH_TEST);
     gl.blendEquation( gl.FUNC_ADD );
     gl.blendFunc( gl.DST_COLOR, gl.DST_ALPHA );
 
