@@ -7,16 +7,13 @@ import { randomRgba, randomRange
 
 const FACE_VERTEX_SOURCE   = require('../shader/face.vert');
 const FACE_FRAGMENT_SOURCE = require('../shader/face.frag');
-const LINE_VERTEX_SOURCE   = require('../shader/line.vert');
-const LINE_FRAGMENT_SOURCE = require('../shader/line.frag');
 
 export default class Demo {
 
   public player: any;
   public instanceCount: number = 0;
   public gl: WebGL2RenderingContext;
-  public faceProgram: ShaderProgram;
-  public lineProgram: ShaderProgram;
+  public shaderProgram: ShaderProgram;
   public buffers: Map<string, BufferInfo> = new Map<string, BufferInfo>();
   public dataset: any = {};
   public config: any = {
@@ -24,7 +21,7 @@ export default class Demo {
     zNear: 0.01,
     zFar: 1000,
     
-    polygon: 30,
+    polygon: 60,
 
     cameraPos: glMatrix.vec3.fromValues(0, 0, 100),
     cameraLook: glMatrix.vec3.fromValues(0, 0, 0),
@@ -89,14 +86,13 @@ export default class Demo {
   private async initShaders() {
     const { gl } = this;
 
-    this.faceProgram = await ShaderProgram.load(gl, FACE_VERTEX_SOURCE, FACE_FRAGMENT_SOURCE);
-    this.lineProgram = await ShaderProgram.load(gl, LINE_VERTEX_SOURCE, LINE_FRAGMENT_SOURCE);
+    this.shaderProgram = await ShaderProgram.load(gl, FACE_VERTEX_SOURCE, FACE_FRAGMENT_SOURCE);
 
     return this;
   }
 
   private getVariable() {
-    const { gl, faceProgram, lineProgram } = this;
+    const { gl, shaderProgram } = this;
 
     const faceAttributeNames: Array<string> = [
       'aVertexPosition',
@@ -111,8 +107,8 @@ export default class Demo {
       'uNormalMatrix',
     ];
 
-    faceProgram.getAttributes(faceAttributeNames);
-    faceProgram.getUniforms(faceUniformNames);
+    shaderProgram.getAttributes(faceAttributeNames);
+    shaderProgram.getUniforms(faceUniformNames);
 
     return this;
   }
@@ -131,7 +127,9 @@ export default class Demo {
     let model_vertex_normal   = [];
     let instance_position     = [];
     let instance_size         = [];
-    let instance_color        = []; 
+    let instance_color        = [];
+    let line_vertex_position  = [];
+    let line_instance_color     = [];
 
     // 圆上每个点 x, y
     for (let i = 0; i <= polygon; i++) {
@@ -148,8 +146,9 @@ export default class Demo {
         [...circle_point_position[i + 1], center.z],
         [center.x, center.y, center.z],
       ];
-      let rgbaColor = randomRgba();
+      let rgbaColorPolygon = randomRgba();
 
+      line_vertex_position.push(...top[0], ...top[1]);
       model_vertex_position.push(...top[0], ...top[1], ...top[2]);
       model_vertex_normal.push(
         ...normalize(calculateNormal(top[0], top[1], top[2])),
@@ -157,9 +156,9 @@ export default class Demo {
         ...normalize(calculateNormal(top[0], top[1], top[2])),
       );
       model_vertex_color.push(
-        ...rgbaColor,
-        ...rgbaColor,
-        ...rgbaColor,
+        ...rgbaColorPolygon,
+        ...rgbaColorPolygon,
+        ...rgbaColorPolygon,
       );
     }
 
@@ -168,6 +167,7 @@ export default class Demo {
         instance_position.push(j, i, randomRange(-5, 5));
         instance_size.push(1.0, 1.0, 1.0);
         instance_color.push(...randomRgba());
+        line_instance_color.push(...randomRgba());
         this.instanceCount++;
       }
     }
@@ -180,6 +180,8 @@ export default class Demo {
     dataset.instance_position     = instance_position;
     dataset.instance_size         = instance_size;
     dataset.instance_color        = instance_color;
+    dataset.line_vertex_position  = line_vertex_position;
+    dataset.line_instance_color   = line_instance_color;
 
     return this;
   }
@@ -237,12 +239,32 @@ export default class Demo {
     gl.bindBuffer(gl.ARRAY_BUFFER, instanceColorBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(dataset.instance_color), gl.STATIC_DRAW);
     buffers.set('instanceColorBuffer', instanceColorBufferInfo);
-    
+
+    const lineVertexBuffer = gl.createBuffer();
+    const lineVertexBufferInfo: BufferInfo = {
+      buffer: lineVertexBuffer,
+      itemSize: 3,
+      numItems: dataset.line_vertex_position.length / 3,
+    };
+    gl.bindBuffer(gl.ARRAY_BUFFER, lineVertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(dataset.line_vertex_position), gl.STATIC_DRAW);
+    buffers.set('lineVertexBuffer', lineVertexBufferInfo);
+
+    const lineInstanceColorBuffer = gl.createBuffer();
+    const lineInstanceColorBufferInfo: BufferInfo = {
+      buffer: lineInstanceColorBuffer,
+      itemSize: 4,
+      numItems: dataset.line_instance_color.length / 4,
+    };
+    gl.bindBuffer(gl.ARRAY_BUFFER, lineInstanceColorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(dataset.line_instance_color), gl.STATIC_DRAW);
+    buffers.set('lineInstanceColorBuffer', lineInstanceColorBufferInfo);
+
     return this;
   }
 
   private drawScene(offScreenRender = false) {
-    const { gl, config, faceProgram, lineProgram, buffers } = this;
+    const { gl, config, shaderProgram, buffers } = this;
 
     const fieldOfView = config.fieldOfView / Math.PI / 180;
     const aspect      = gl.drawingBufferWidth / gl.drawingBufferHeight;
@@ -275,53 +297,76 @@ export default class Demo {
     gl.clearColor(.25, .25, .25, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    faceProgram.use();
+    shaderProgram.use();
 
-    gl.enable( gl.BLEND );
+    // Alpha blend:  https://wgld.org/s/sample_018/
+    gl.enable(gl.BLEND);
     gl.blendEquation( gl.FUNC_ADD );
-    gl.blendFunc( gl.SRC_COLOR, gl.DST_ALPHA );
+    gl.blendFunc( gl.DST_COLOR, gl.DST_ALPHA );
 
-    gl.uniformMatrix4fv(faceProgram.uniformVariables.get('uMvpMatrix'), false, mvpMatrix);
-    gl.uniformMatrix4fv(faceProgram.uniformVariables.get('uModelMatrix'), false,modelMatrix);
-    gl.uniformMatrix4fv(faceProgram.uniformVariables.get('uNormalMatrix'), false,normalMatrix);
+    gl.uniformMatrix4fv(shaderProgram.uniformVariables.get('uMvpMatrix'), false, mvpMatrix);
+    gl.uniformMatrix4fv(shaderProgram.uniformVariables.get('uModelMatrix'), false,modelMatrix);
+    gl.uniformMatrix4fv(shaderProgram.uniformVariables.get('uNormalMatrix'), false,normalMatrix);
 
 
     const modelVertexBufferInfo = buffers.get('modelVertexBuffer');
-    const aVertexPositionVariable = faceProgram.attributeVariables.get('aVertexPosition');
+    const aVertexPositionVariable = shaderProgram.attributeVariables.get('aVertexPosition');
     gl.bindBuffer(gl.ARRAY_BUFFER, modelVertexBufferInfo.buffer);
     gl.enableVertexAttribArray(aVertexPositionVariable);
     gl.vertexAttribPointer( aVertexPositionVariable, modelVertexBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
 
     // const modelColorBufferInfo = buffers.get('modelColorBuffer');
-    // const aVertexColorVariable = faceProgram.attributeVariables.get('aVertexColor');
+    // const aVertexColorVariable = shaderProgram.attributeVariables.get('aVertexColor');
     // gl.bindBuffer(gl.ARRAY_BUFFER, modelColorBufferInfo.buffer);
     // gl.enableVertexAttribArray(aVertexColorVariable);
     // gl.vertexAttribPointer(aVertexColorVariable, modelColorBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
 
     const instancePositionBufferInfo = buffers.get('instancePositionBuffer');
-    const aInstancePositionVariable = faceProgram.attributeVariables.get('aInstancePosition');
+    const aInstancePositionVariable = shaderProgram.attributeVariables.get('aInstancePosition');
     gl.bindBuffer(gl.ARRAY_BUFFER, instancePositionBufferInfo.buffer);
     gl.enableVertexAttribArray(aInstancePositionVariable);
     gl.vertexAttribPointer(aInstancePositionVariable, instancePositionBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
     gl.vertexAttribDivisor(aInstancePositionVariable, 1);
 
     const instanceSizeBufferInfo = buffers.get('instanceSizeBuffer');
-    const aInstanceSizeVariable = faceProgram.attributeVariables.get('aInstanceSize');
+    const aInstanceSizeVariable = shaderProgram.attributeVariables.get('aInstanceSize');
     gl.bindBuffer(gl.ARRAY_BUFFER, instanceSizeBufferInfo.buffer);
     gl.enableVertexAttribArray(aInstanceSizeVariable);
     gl.vertexAttribPointer(aInstanceSizeVariable, instanceSizeBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
     gl.vertexAttribDivisor(aInstanceSizeVariable, 1);
 
     const instanceColorBufferInfo = buffers.get('instanceColorBuffer');
-    const aInstanceColorVariable = faceProgram.attributeVariables.get('aInstanceColor');
+    const aInstanceColorVariable = shaderProgram.attributeVariables.get('aInstanceColor');
     gl.bindBuffer(gl.ARRAY_BUFFER, instanceColorBufferInfo.buffer);
     gl.enableVertexAttribArray(aInstanceColorVariable);
     gl.vertexAttribPointer(aInstanceColorVariable, instanceColorBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
     gl.vertexAttribDivisor(aInstanceColorVariable, 1);
 
-
     gl.drawArraysInstanced(gl.TRIANGLES, 0, modelVertexBufferInfo.numItems, this.instanceCount || 1);
 
+    const lineVertexBuffer = buffers.get('lineVertexBuffer');
+    gl.bindBuffer(gl.ARRAY_BUFFER, lineVertexBuffer.buffer);
+    gl.enableVertexAttribArray(aVertexPositionVariable);
+    gl.vertexAttribPointer( aVertexPositionVariable, lineVertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, instancePositionBufferInfo.buffer);
+    gl.enableVertexAttribArray(aInstancePositionVariable);
+    gl.vertexAttribPointer(aInstancePositionVariable, instancePositionBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(aInstancePositionVariable, 1);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, instanceSizeBufferInfo.buffer);
+    gl.enableVertexAttribArray(aInstanceSizeVariable);
+    gl.vertexAttribPointer(aInstanceSizeVariable, instanceSizeBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(aInstanceSizeVariable, 1);
+
+    const lineInstanceColorBuffer = buffers.get('lineInstanceColorBuffer');
+    gl.bindBuffer(gl.ARRAY_BUFFER, lineInstanceColorBuffer.buffer);
+    gl.enableVertexAttribArray(aInstanceColorVariable);
+    gl.vertexAttribPointer(aInstanceColorVariable, lineInstanceColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(aInstanceColorVariable, 1);
+
+    // gl.drawArrays(gl.LINES, 0, lineVertexBuffer.numItems);
+    gl.drawArraysInstanced(gl.LINES, 0, lineVertexBuffer.numItems, this.instanceCount || 1);
   }
 
   private clickItemHandler() {
@@ -447,7 +492,7 @@ export default class Demo {
   private update(deltaTime: number) {
     const { config } = this;
     const scalingRatio = 0.0025;
-    // config.cameraRotate[1] += 0.25;
+    config.cameraRotate[0] += 0.25;
 
     // for ( let i = 0, len = config.scaling.length; i < len; i++ ) {
     //   if ( config.scaling[i] >= 0.5 && config.scaling[i] <= 1.0 ) {
