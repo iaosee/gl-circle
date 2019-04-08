@@ -148,7 +148,24 @@ export default class Demo {
       ];
       let rgbaColorPolygon = randomRgba();
 
+      
       line_vertex_position.push(...top[0], ...top[1]);
+      line_vertex_position.push(
+        top[0][0] * 1.05, 
+        top[0][1] * 1.05, 
+        top[0][2] * 1.05, 
+        top[1][0] * 1.05,
+        top[1][1] * 1.05,
+        top[1][2] * 1.05,
+      );
+      line_vertex_position.push(
+        top[0][0] * 1.08, 
+        top[0][1] * 1.08, 
+        top[0][2] * 1.08, 
+        top[1][0] * 1.08,
+        top[1][1] * 1.08,
+        top[1][2] * 1.08,
+      );
       model_vertex_position.push(...top[0], ...top[1], ...top[2]);
       model_vertex_normal.push(
         ...normalize(calculateNormal(top[0], top[1], top[2])),
@@ -301,7 +318,6 @@ export default class Demo {
 
     // Alpha blend:  https://wgld.org/s/sample_018/
     gl.enable(gl.BLEND);
-    gl.disable(this.gl.DEPTH_TEST);
     gl.blendEquation( gl.FUNC_ADD );
     gl.blendFunc( gl.DST_COLOR, gl.DST_ALPHA );
 
@@ -310,42 +326,17 @@ export default class Demo {
     gl.uniformMatrix4fv(shaderProgram.uniformVariables.get('uNormalMatrix'), false,normalMatrix);
 
 
-    const modelVertexBufferInfo = buffers.get('modelVertexBuffer');
-    const aVertexPositionVariable = shaderProgram.attributeVariables.get('aVertexPosition');
-    gl.bindBuffer(gl.ARRAY_BUFFER, modelVertexBufferInfo.buffer);
-    gl.enableVertexAttribArray(aVertexPositionVariable);
-    gl.vertexAttribPointer( aVertexPositionVariable, modelVertexBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
+    const modelVertexBufferInfo       = buffers.get('modelVertexBuffer');
+    const aVertexPositionVariable     = shaderProgram.attributeVariables.get('aVertexPosition');
+    const instancePositionBufferInfo  = buffers.get('instancePositionBuffer');
+    const aInstancePositionVariable   = shaderProgram.attributeVariables.get('aInstancePosition');
+    const instanceSizeBufferInfo      = buffers.get('instanceSizeBuffer');
+    const aInstanceSizeVariable       = shaderProgram.attributeVariables.get('aInstanceSize');
+    const instanceColorBufferInfo     = buffers.get('instanceColorBuffer');
+    const aInstanceColorVariable      = shaderProgram.attributeVariables.get('aInstanceColor');
+    const lineVertexBuffer            = buffers.get('lineVertexBuffer');
+    const lineInstanceColorBuffer     = buffers.get('lineInstanceColorBuffer');
 
-    // const modelColorBufferInfo = buffers.get('modelColorBuffer');
-    // const aVertexColorVariable = shaderProgram.attributeVariables.get('aVertexColor');
-    // gl.bindBuffer(gl.ARRAY_BUFFER, modelColorBufferInfo.buffer);
-    // gl.enableVertexAttribArray(aVertexColorVariable);
-    // gl.vertexAttribPointer(aVertexColorVariable, modelColorBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
-
-    const instancePositionBufferInfo = buffers.get('instancePositionBuffer');
-    const aInstancePositionVariable = shaderProgram.attributeVariables.get('aInstancePosition');
-    gl.bindBuffer(gl.ARRAY_BUFFER, instancePositionBufferInfo.buffer);
-    gl.enableVertexAttribArray(aInstancePositionVariable);
-    gl.vertexAttribPointer(aInstancePositionVariable, instancePositionBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
-    gl.vertexAttribDivisor(aInstancePositionVariable, 1);
-
-    const instanceSizeBufferInfo = buffers.get('instanceSizeBuffer');
-    const aInstanceSizeVariable = shaderProgram.attributeVariables.get('aInstanceSize');
-    gl.bindBuffer(gl.ARRAY_BUFFER, instanceSizeBufferInfo.buffer);
-    gl.enableVertexAttribArray(aInstanceSizeVariable);
-    gl.vertexAttribPointer(aInstanceSizeVariable, instanceSizeBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
-    gl.vertexAttribDivisor(aInstanceSizeVariable, 1);
-
-    const instanceColorBufferInfo = buffers.get('instanceColorBuffer');
-    const aInstanceColorVariable = shaderProgram.attributeVariables.get('aInstanceColor');
-    gl.bindBuffer(gl.ARRAY_BUFFER, instanceColorBufferInfo.buffer);
-    gl.enableVertexAttribArray(aInstanceColorVariable);
-    gl.vertexAttribPointer(aInstanceColorVariable, instanceColorBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
-    gl.vertexAttribDivisor(aInstanceColorVariable, 1);
-
-    gl.drawArraysInstanced(gl.TRIANGLES, 0, modelVertexBufferInfo.numItems, this.instanceCount || 1);
-
-    const lineVertexBuffer = buffers.get('lineVertexBuffer');
     gl.bindBuffer(gl.ARRAY_BUFFER, lineVertexBuffer.buffer);
     gl.enableVertexAttribArray(aVertexPositionVariable);
     gl.vertexAttribPointer( aVertexPositionVariable, lineVertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
@@ -360,7 +351,6 @@ export default class Demo {
     gl.vertexAttribPointer(aInstanceSizeVariable, instanceSizeBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
     gl.vertexAttribDivisor(aInstanceSizeVariable, 1);
 
-    const lineInstanceColorBuffer = buffers.get('lineInstanceColorBuffer');
     gl.bindBuffer(gl.ARRAY_BUFFER, lineInstanceColorBuffer.buffer);
     gl.enableVertexAttribArray(aInstanceColorVariable);
     gl.vertexAttribPointer(aInstanceColorVariable, lineInstanceColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
@@ -368,6 +358,37 @@ export default class Demo {
 
     // gl.drawArrays(gl.LINES, 0, lineVertexBuffer.numItems);
     gl.drawArraysInstanced(gl.LINES, 0, lineVertexBuffer.numItems, this.instanceCount || 1);
+
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, modelVertexBufferInfo.buffer);
+    gl.enableVertexAttribArray(aVertexPositionVariable);
+    gl.vertexAttribPointer( aVertexPositionVariable, modelVertexBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
+
+    // const modelColorBufferInfo = buffers.get('modelColorBuffer');
+    // const aVertexColorVariable = shaderProgram.attributeVariables.get('aVertexColor');
+    // gl.bindBuffer(gl.ARRAY_BUFFER, modelColorBufferInfo.buffer);
+    // gl.enableVertexAttribArray(aVertexColorVariable);
+    // gl.vertexAttribPointer(aVertexColorVariable, modelColorBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, instancePositionBufferInfo.buffer);
+    gl.enableVertexAttribArray(aInstancePositionVariable);
+    gl.vertexAttribPointer(aInstancePositionVariable, instancePositionBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(aInstancePositionVariable, 1);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, instanceSizeBufferInfo.buffer);
+    gl.enableVertexAttribArray(aInstanceSizeVariable);
+    gl.vertexAttribPointer(aInstanceSizeVariable, instanceSizeBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(aInstanceSizeVariable, 1);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, instanceColorBufferInfo.buffer);
+    gl.enableVertexAttribArray(aInstanceColorVariable);
+    gl.vertexAttribPointer(aInstanceColorVariable, instanceColorBufferInfo.itemSize, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(aInstanceColorVariable, 1);
+
+    gl.drawArraysInstanced(gl.TRIANGLES, 0, modelVertexBufferInfo.numItems, this.instanceCount || 1);
+
+
+    return this;
   }
 
   private clickItemHandler() {
