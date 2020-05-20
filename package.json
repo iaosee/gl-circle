@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "npm run server",
-    "build": "./node_modules/.bin/webpack",
+    "build": "cross-env MODE_ENV=true ./node_modules/.bin/webpack",
     "server": "./node_modules/.bin/webpack-serve ./webpack.config.js --open"
   },
   "repository": {
@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "@types/webgl2": "0.0.4",
+    "cross-env": "^7.0.2",
     "gl-matrix-ts": "^2.3.3"
   }
 }
