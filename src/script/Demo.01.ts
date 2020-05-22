@@ -1,29 +1,31 @@
+import * as dat from 'dat.gui';
 import * as glMatrix from 'gl-matrix-ts';
 
-import ShaderProgram from "./core/ShaderProgram";
 import { BufferInfo } from "./declare";
-import { randomRgba, randomRange
-       , calculateNormal, normalize } from './tools';
+import { ShaderProgram } from "./core/ShaderProgram";
+import { randomRgba, randomRange, calculateNormal, normalize } from './tools';
 
 const FACE_VERTEX_SOURCE   = require('../shader/face.vert');
 const FACE_FRAGMENT_SOURCE = require('../shader/face.frag');
 
 export default class Demo {
 
-  public player: any;
+  public player: number;
   public instanceCount: number = 0;
   public gl: WebGL2RenderingContext;
   public shaderProgram: ShaderProgram;
   public buffers: Map<string, BufferInfo> = new Map<string, BufferInfo>();
   public dataset: any = {};
-  public config: any = {
+  public config = {
     fieldOfView: 45,
     zNear: 0.01,
     zFar: 1000,
 
-    polygon: 60,
+    polygon: 50,
 
-    cameraPos: glMatrix.vec3.fromValues(0, 0, 100),
+    pause: false,
+
+    cameraPos: glMatrix.vec3.fromValues(0, 0, 200),
     cameraLook: glMatrix.vec3.fromValues(0, 0, 0),
     cameraRotate: glMatrix.vec3.fromValues(45, 0, 0),
 
@@ -34,7 +36,8 @@ export default class Demo {
   public constructor(public canvas: HTMLCanvasElement) {
     console.log(this);
 
-    this.initGL()
+    this.createControl()
+        .initGL()
         .createModel()
         .initShaders()
         .then((demo) => {
@@ -61,11 +64,22 @@ export default class Demo {
     const { gl } = this;
 
     gl.viewport(
-      0, 
+      0,
       0,
       gl.drawingBufferWidth,
       gl.drawingBufferHeight
     );
+
+    return this;
+  }
+
+  private createControl() {
+
+    const { config } = this;
+    const gui = new dat.GUI();
+
+    gui.add(config, 'pause').onFinishChange(v => v ? this.stopPlay() : this.startPlay());
+    gui.add(config, 'polygon').min(4).max(100).step(1).onFinishChange(() => this.createModel().initBuffers().drawScene());
 
     return this;
   }
@@ -148,20 +162,20 @@ export default class Demo {
       ];
       let rgbaColorPolygon = randomRgba();
 
-      
+
       line_vertex_position.push(...top[0], ...top[1]);
       line_vertex_position.push(
-        top[0][0] * 1.05, 
-        top[0][1] * 1.05, 
-        top[0][2] * 1.05, 
+        top[0][0] * 1.05,
+        top[0][1] * 1.05,
+        top[0][2] * 1.05,
         top[1][0] * 1.05,
         top[1][1] * 1.05,
         top[1][2] * 1.05,
       );
       line_vertex_position.push(
-        top[0][0] * 1.08, 
-        top[0][1] * 1.08, 
-        top[0][2] * 1.08, 
+        top[0][0] * 1.08,
+        top[0][1] * 1.08,
+        top[0][2] * 1.08,
         top[1][0] * 1.08,
         top[1][1] * 1.08,
         top[1][2] * 1.08,
@@ -179,8 +193,8 @@ export default class Demo {
       );
     }
 
-    for( let i = -5; i <= Math.abs(-5); i += 2 ) {
-      for( let j = -5; j <= Math.abs(-5); j += 2 ) {
+    for( let i = -6; i <= Math.abs(-6); i += 2 ) {
+      for( let j = -6; j <= Math.abs(-6); j += 2 ) {
         instance_position.push(j, i, randomRange(-5, 5));
         instance_size.push(1.0, 1.0, 1.0);
         instance_color.push(...randomRgba());
@@ -205,7 +219,7 @@ export default class Demo {
 
   private initBuffers() {
     const { gl, dataset, buffers } = this;
-    
+
 
     const modelVertexBuffer = gl.createBuffer();
     const modelVertexBufferInfo: BufferInfo = {
@@ -391,12 +405,6 @@ export default class Demo {
     return this;
   }
 
-  private clickItemHandler() {
-    return (e: MouseEvent) => {
-      console.log(e);
-    }
-  }
-
   listenEvents() {
     const { canvas, config } = this;
     const _this = this;
@@ -407,7 +415,6 @@ export default class Demo {
       keyStep: 0.1,
     };
 
-    canvas.addEventListener('mousedown', this.clickItemHandler(), false);
     document.addEventListener('contextmenu', (e: MouseEvent) => e.preventDefault());
     canvas.addEventListener('mousewheel', mouseWheelHandler, false);
     canvas.addEventListener('mousedown', mouseDownHandler, false);
@@ -421,11 +428,12 @@ export default class Demo {
     canvas.addEventListener('webglcontextrestored', contextRestoredHandler, false);
 
     function mouseWheelHandler(e: MouseWheelEvent) {
-      let z = e.deltaY / canvas.height * 10;
+      let z = e.deltaY / canvas.height * 100;
       config.cameraPos[2] += z;
       config.cameraLook[2] += z;
 
       // console.log(config.cameraPos, config.cameraLook);
+      _this.drawScene();
     }
 
     function mouseDownHandler(e: MouseEvent) {
@@ -438,6 +446,7 @@ export default class Demo {
         mouse.dragging = true;
       }
       e.preventDefault && e.preventDefault();
+      _this.drawScene();
     }
 
     function mouseMoveHandler(e: MouseEvent) {
@@ -450,10 +459,10 @@ export default class Demo {
         // config.cameraRotate[0] = Math.max(Math.min(config.cameraRotate[0] + dy, 180.0), -180.0);
         // console.log(e.ctrlKey);
         if (e.ctrlKey) {
-          config.cameraPos[0] -= dx / 100;
-          config.cameraPos[1] += dy / 100;
-          config.cameraLook[0] -= dx / 100;
-          config.cameraLook[1] += dy / 100;
+          config.cameraPos[0] -= dx / 10;
+          config.cameraPos[1] += dy / 10;
+          config.cameraLook[0] -= dx / 10;
+          config.cameraLook[1] += dy / 10;
         } else {
           config.cameraRotate[0] += dy;
           config.cameraRotate[1] += dx;
@@ -462,6 +471,7 @@ export default class Demo {
       mouse.lastMouseX = x;
       mouse.lastMouseY = y;
       e.preventDefault && e.preventDefault();
+      _this.drawScene();
     }
 
     function mouseUpHandler(e: MouseEvent) {
@@ -483,19 +493,20 @@ export default class Demo {
           break;
         case 65: // left
         case 37:
-          config.cameraPos[0] -= mouse.keyStep;
-          config.cameraLook[0] -= mouse.keyStep;
+          config.cameraPos[0] += mouse.keyStep;
+          config.cameraLook[0] += mouse.keyStep;
           break;
         case 68: // right
         case 39:
-          config.cameraPos[0] += mouse.keyStep;
-          config.cameraLook[0] += mouse.keyStep;
+          config.cameraPos[0] -= mouse.keyStep;
+          config.cameraLook[0] -= mouse.keyStep;
           break;
         case 32:
           console.log('restoration');
           _this.restoration()
           break;
       }
+      _this.drawScene();
     }
 
     function contextLostHandler(e: MouseEvent) {
@@ -514,9 +525,9 @@ export default class Demo {
 
   private restoration() {
     const { config } = this;
-    config.cameraPos = [0, 0, 100];
-    config.cameraLook = [0, 0, 0];
-    config.cameraRotate = [45, 0, 0];
+    config.cameraPos = glMatrix.vec3.fromValues(0, 0, 200);
+    config.cameraLook = glMatrix.vec3.fromValues(0, 0, 0);
+    config.cameraRotate = glMatrix.vec3.fromValues(45, 0, 0);
     return this;
   }
 
@@ -529,7 +540,7 @@ export default class Demo {
       if ( config.scaling[i] >= 0.5 && config.scaling[i] <= 1.0 ) {
         config.scaling[i] += scalingRatio;
       } else {
-        config.scaling[i] = 0.5;
+        config.scaling[i] -= scalingRatio;
       }
     }
 
@@ -538,6 +549,7 @@ export default class Demo {
 
   private startPlay() {
     let then: number = 0;
+    const { config } = this;
 
     const tick = (now: number) => {
       let deltaTime: number = now - then;
@@ -558,6 +570,5 @@ export default class Demo {
     this.player && cancelAnimationFrame(this.player);
     return this;
   }
-
 
 }

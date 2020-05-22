@@ -1,6 +1,6 @@
 
 
-export default class ShaderProgram {
+export class ShaderProgram {
 
   public vertShader: WebGLShader;
   public fragShader: WebGLShader;
@@ -51,7 +51,7 @@ export default class ShaderProgram {
   ): Promise<ShaderProgram>  {
 
     return Promise.all([
-      ShaderProgram.getScript(vertSelector), 
+      ShaderProgram.getScript(vertSelector),
       ShaderProgram.getScript(fragSelector)
     ])
       .then((scripts: Array<string>) => new ShaderProgram(gl, scripts[0], scripts[1]));

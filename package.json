@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "npm run server",
-    "build": "cross-env MODE_ENV=true ./node_modules/.bin/webpack",
+    "build": "cross-env MODE_ENV=production ./node_modules/.bin/webpack",
     "server": "./node_modules/.bin/webpack-serve ./webpack.config.js --open"
   },
   "repository": {
@@ -24,6 +24,7 @@
     "@babel/plugin-transform-runtime": "^7.2.0",
     "@babel/preset-env": "^7.3.4",
     "@babel/runtime": "^7.2.0",
+    "@types/dat.gui": "^0.7.5",
     "@types/node": "^11.11.5",
     "babel-loader": "^8.0.4",
     "clean-webpack-plugin": "^0.1.19",
@@ -47,6 +48,7 @@
   "dependencies": {
     "@types/webgl2": "0.0.4",
     "cross-env": "^7.0.2",
+    "dat.gui": "^0.7.7",
     "gl-matrix-ts": "^2.3.3"
   }
 }

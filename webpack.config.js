@@ -5,7 +5,7 @@ const CleanWebpackPlugin = require('clean-webpack-plugin');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 
 
-const isProd = Boolean(process.env.MODE_ENV);
+const isProd = process.env.MODE_ENV === 'production';
 const ROOT_PATH = __dirname;
 const PATHS = {
   src: path.resolve(ROOT_PATH, 'src'),
