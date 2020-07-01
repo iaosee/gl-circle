@@ -26,4 +26,4 @@ jobs:
         ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         BRANCH: gh-pages
         FOLDER: dist
-        SINGLE_COMMIT: true
+        SINGLE_COMMIT: false
