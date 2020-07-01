@@ -80,6 +80,7 @@ export default class Demo {
 
     gui.add(config, 'pause').onFinishChange(v => v ? this.stopPlay() : this.startPlay());
     gui.add(config, 'polygon').min(4).max(100).step(1).onFinishChange(() => this.createModel().initBuffers().drawScene());
+    gui.add(config, 'fieldOfView').min(10).max(90).step(1);
 
     return this;
   }

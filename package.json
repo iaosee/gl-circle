@@ -9,8 +9,10 @@
     "build": "cross-env MODE_ENV=production ./node_modules/.bin/webpack",
     "server": "./node_modules/.bin/webpack-serve ./webpack.config.js --open"
   },
+  "homepage": "https://iaosee.github.io/gl-circle/",
   "repository": {
-    "type": "git"
+    "type": "git",
+    "url": "https://github.com/iaosee/gl-circle.git"
   },
   "keywords": [
     "WebGL",
