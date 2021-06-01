@@ -44,7 +44,7 @@ export class ShaderProgram {
     });
   }
 
-  static createProgramFromScripts(
+  public static createProgramFromScripts(
     gl: WebGLRenderingContext,
     vertSelector: string,
     fragSelector: string
@@ -92,7 +92,7 @@ export class ShaderProgram {
     return shader;
   }
 
-  createShaderProgram(
+  public createShaderProgram(
     vertShader: WebGLShader,
     fragShader: WebGLShader
   ): WebGLProgram {
@@ -108,7 +108,7 @@ export class ShaderProgram {
     return program;
   }
 
-  getAttribute(attributeName: string): number {
+  public getAttribute(attributeName: string): number {
     const { gl, shaderProgram } = this;
     const attribLocation: number = gl.getAttribLocation(shaderProgram, attributeName);
 
@@ -116,7 +116,7 @@ export class ShaderProgram {
     return attribLocation;
   }
 
-  getUniform(uniformName: string): WebGLUniformLocation {
+  public getUniform(uniformName: string): WebGLUniformLocation {
     const { gl, shaderProgram } = this;
     const uniformLocation: WebGLUniformLocation = gl.getUniformLocation(shaderProgram, uniformName);
 
@@ -124,7 +124,7 @@ export class ShaderProgram {
     return uniformLocation;
   }
 
-  getAttributes(attributeNames: Array<string>): Array<number> {
+  public getAttributes(attributeNames: Array<string>): Array<number> {
     const { gl, shaderProgram } = this;
     const attribLocations: Array<number> = [];
 
@@ -140,7 +140,7 @@ export class ShaderProgram {
     return attribLocations;
   }
 
-  getUniforms(uniformNames: Array<string>): Array<WebGLUniformLocation> {
+  public getUniforms(uniformNames: Array<string>): Array<WebGLUniformLocation> {
     const { gl, shaderProgram } = this;
     const uniformLocations: Array<WebGLUniformLocation> = [];
 
